@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>th-art</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: monospace; white-space: pre; }
+        #canvas { position: relative; width: 400px; height: 120px; }
+        .text { position: absolute; }
+    </style>
+</head>
+<body>
+<div id="canvas" onclick="handleClick(event)" tabindex="0" onkeydown="handleKey(event)">
+    <div id="th" class="text" style="left: 0; top: 20px;">th</div>
+    <div class="text" style="left: 30px; top: 0px;">is</div>
+    <div class="text" style="left: 30px; top: 40px;">is</div>
+    <div class="text" style="left: 30px; top: 80px;">art</div>
+    <div id="typed" class="text" style="left: 60px; top: 40px;"></div>
+    <div id="entered" class="text" style="left: 60px; top: 40px;"></div>
+</div>
+
+<script>
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+  let localWord = "";
+
+    stompClient.connect({}, () => {
+        stompClient.subscribe('/topic/position', message => {
+            document.getElementById("th").style.top = message.body + "px";
+        });
+        stompClient.subscribe('/topic/typed', message => {
+            /*if (message.body.startsWith("\n")) {
+                document.getElementById("entered").innerText = message.body.slice(2);
+                document.getElementById("typed").innerText = "";
+            } else {
+                document.getElementById("typed").innerText = message.body;
+		}*/
+	    document.getElementById("entered").innerText = message.body;
+        });
+    });
+
+  function handleKey(e) {
+      const key = e.key;
+      if (key === "Enter"){
+	  stompClient.send("/app/type", {}, "\n");
+	  localWord = "";
+      } else if (key.match(/^[a-zA-Z0-9 ]$/)){
+	  localWord += key;
+	  document.getElementById("typed").innerText = localWord;
+      }
+  }
+    function handleClick(e) {
+        const y = e.clientY - e.target.getBoundingClientRect().top;
+        stompClient.send("/app/move", {}, y < 40 ? "up" : "down");
+    }
+
+/*
+  function handleKey(e) {
+        const key = e.key === "Enter" ? "\n" : e.key;
+        stompClient.send("/app/type", {}, key);
+    }
+*/
+    document.getElementById("canvas").focus();
+</script>
+</body>
+</html>
